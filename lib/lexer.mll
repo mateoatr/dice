@@ -71,6 +71,7 @@ rule token =
     | "head"                    { HEAD }
     | "tail"                    { TAIL }
     | "length"                  { LENGTH }
+    | "while"                   { WHILE }
     | '('                       { LPAREN }
     | ')'                       { RPAREN }
     | '['                       { LBRACKET }

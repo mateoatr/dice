@@ -30,6 +30,7 @@ let map_eexpr f =
   | IntConst(s, i) -> IntConst(s, i)
   | Not(s, e) -> Not(s, f e)
   | Ite(s, e1, e2, e3) -> Ite(s, f e1, f e2, f e3)
+  | While(s, test, body_expression) -> While(s, f test, f body_expression)
   | Flip(s, p) -> Flip(s, p)
   | Let(s, id, e1, e2) -> Let(s, id, f e1, f e2)
   | Observe(s, e) -> Observe(s, f e)
@@ -245,6 +246,7 @@ type ast =
   | IntConst of source * int
   | Not of source * tast
   | Ite of source * tast * tast * tast
+  | While of source * tast * tast
   | Flip of source * Bignum.t
   | Let of source * String.t * tast * tast
   | Observe of source * tast
@@ -424,6 +426,10 @@ let rec type_of (cfg: config) (ctx: typ_ctx) (env: EG.tenv) (e: EG.eexpr) : tast
                                          from branches of if-statement, got %s and %s"
                            s.startpos.pos_lnum (get_col s.startpos) (string_of_typ t1) (string_of_typ t2)))
     else (t1, Ite(s, sg, (t1, thnbody), (t2, elsbody)))
+  | While(s, test, body_expression) ->
+    let test_type = expect_t test ((EG.get_src test).startpos) TBool in
+    let body_expression_type = type_of cfg ctx env body_expression in
+    (fst body_expression_type, While(s, test_type, body_expression_type))
   | FuncCall(s, "nth_bit", [Int(src, sz, v); e2]) ->
     let conve2 = match type_of cfg ctx env e2 with
       | (TInt(v), r) ->(TInt(v), r)
@@ -837,6 +843,8 @@ let rec from_external_expr_h (ctx: external_ctx) (cfg: config) ((t, e): tast) : 
   | Ite(_, g, thn, els) -> Ite(from_external_expr_h ctx cfg g,
                                from_external_expr_h ctx cfg thn,
                                from_external_expr_h ctx cfg els)
+  | While(_, test, body_expression) -> While(from_external_expr_h ctx cfg test,
+                                             from_external_expr_h ctx cfg body_expression)
   | Snd(_, e) -> Snd(from_external_expr_h ctx cfg e)
   | Fst(_, e) -> Fst(from_external_expr_h ctx cfg e)
   | Tup(_, e1, e2) -> Tup(from_external_expr_h ctx cfg e1, from_external_expr_h ctx cfg e2)

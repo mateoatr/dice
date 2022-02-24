@@ -14,6 +14,7 @@ type expr =
   | Snd of expr
   | Tup of expr * expr
   | Ite of expr * expr * expr
+  | While of expr * expr
   | True
   | False
   | Flip of Bignum.t

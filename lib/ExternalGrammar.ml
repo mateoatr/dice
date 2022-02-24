@@ -41,6 +41,7 @@ type eexpr =
   | IntConst of source * int
   | Not of source * eexpr
   | Ite of source * eexpr * eexpr * eexpr
+  | While of source * eexpr * eexpr
   | Flip of source * Bignum.t
   | Let of source * String.t * eexpr * eexpr
   | Observe of source * eexpr
@@ -114,6 +115,7 @@ let get_src e =
   | Observe(s, _) -> s
   | Let(s, _, _, _) -> s
   | Ite(s, _, _, _) -> s
+  | While(s, _, _) -> s
   | Snd(s, _) -> s
   | Fst(s, _) -> s
   | Tup(s, _, _) -> s

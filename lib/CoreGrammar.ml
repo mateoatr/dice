@@ -12,6 +12,7 @@ type expr =
   | Snd of expr
   | Tup of expr * expr
   | Ite of expr * expr * expr
+  | While of expr * expr
   | True
   | False
   | Flip of Bignum.t
@@ -65,6 +66,9 @@ let rec type_of env e : typ =
     (* let t2 = type_of env els in *)
     (* assert (t1 == t2); *)
     t1
+  | While(test, body_expression) ->
+    let type_of_while_loop = type_of env body_expression in
+    type_of_while_loop
   | FuncCall(id, _) ->
     (try Map.Poly.find_exn env id
     with _ -> failwith (Format.sprintf "Could not find function '%s' during typechecking" id))

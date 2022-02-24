@@ -11,7 +11,7 @@
 %token LPAREN RPAREN
 %token IF THEN ELSE TRUE FALSE IN INT
 %token SEMICOLON COMMA COLON
-%token LET OBSERVE FLIP LBRACE RBRACE FST SND FUN BOOL ITERATE UNIFORM BINOMIAL
+%token LET OBSERVE FLIP LBRACE RBRACE FST SND FUN BOOL ITERATE UNIFORM BINOMIAL WHILE
 %token LIST LBRACKET RBRACKET CONS HEAD TAIL LENGTH
 
 %token <int>    INT_LIT
@@ -72,6 +72,7 @@ expr:
     | NOT expr { Not({startpos=$startpos; endpos=$endpos}, $2) }
     | FLIP num { Flip({startpos=$startpos; endpos=$endpos}, $2) }
     | FLIP LPAREN num RPAREN { Flip({startpos=$startpos; endpos=$endpos}, $3) }
+    | WHILE expr LBRACE expr RBRACE { While({startpos=$startpos; endpos=$endpos}, $2, $4) }
     | OBSERVE expr { Observe({startpos=$startpos; endpos=$endpos}, $2) }
     | IF expr THEN expr ELSE expr { Ite({startpos=$startpos; endpos=$endpos}, $2, $4, $6) }
     | ITERATE LPAREN id=ID COMMA e=expr COMMA k=INT_LIT RPAREN { Iter({startpos=$startpos; endpos=$endpos}, id, e, k) }
