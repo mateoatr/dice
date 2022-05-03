@@ -59,7 +59,7 @@ let dump_dot_multiroot mgr (m: name_map) (b: Bdd.bddptr VarState.btree) : String
         | None -> name in
       Hashtbl.Poly.add_exn seen ~key:b ~data:name;
       (* print node *)
-      let (thn, els) = (Bdd.bdd_low mgr b, Bdd.bdd_high mgr b) in
+      let (thn, els) = (Bdd.bdd_high mgr b, Bdd.bdd_low mgr b) in
       let (s1, s_thn) = dump_dot_h s m thn seen in
       let (s2, s_els) = dump_dot_h s1 m els seen in
       let r = (Format.sprintf "%s%s [label = \"%s\" ]\n%s -> %s\n%s -> %s [style=dashed]\n" s2 name lbl name s_thn name s_els, name) in

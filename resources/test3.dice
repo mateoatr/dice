@@ -1,0 +1,5 @@
+if flip 0.5 then (true, true) else let a0 = (flip 0.5, flip 0.5) in
+if flip 0.5 then (true, true) else let a1 = (flip 0.5, flip 0.5) in
+if flip 0.5 then (true, true) else let a2 = (flip 0.5, flip 0.5) in
+if flip 0.5 then (true, true) else let a3 = (flip 0.5, flip 0.5) in
+((fst a0) || (fst a1) || (fst a2) || (fst a3), (snd a0) || (snd a1) || (snd a2) && (snd a3))

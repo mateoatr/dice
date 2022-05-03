@@ -58,6 +58,19 @@ let rec is_const mgr (st: bddptr btree) =
   | Leaf(v) -> Bdd.bdd_is_const mgr v
   | Node(l, r) -> (is_const mgr l) && (is_const mgr r)
 
+  (* Copied over from the mechanics inside Passes, might put in one single place instead *)
+module EG = ExternalGrammar
+
+let rec type_eq t1 t2 =
+  let open EG in
+  match (t1, t2) with
+  | (TBool, TBool) -> true
+  | ((TTuple(ll, lr), TTuple(rl, rr))) ->
+    (type_eq ll rl) && (type_eq lr rr)
+  | (TInt(d1), TInt(d2)) when d1 = d2 -> true
+  | TList l, TList r -> type_eq l r
+  | _ -> false
+
 let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled_expr =
   let binop_helper f e1 e2 =
     let c1 = compile_expr ctx tenv env e1 in
@@ -107,38 +120,48 @@ let rec compile_expr (ctx: compile_context) (tenv: tenv) (env: env) e : compiled
       let z' = Bdd.bdd_and ctx.man cg.z (Bdd.bdd_ite ctx.man gbdd cthn.z cels.z) in
       {state=v'; z=z'; flips = cg.flips @ cthn.flips @ cels.flips}
 
-  | While(test, body_expression) ->
-    let compiled_body_expression = compile_expr ctx tenv env body_expression in
-    let compiled_body_expression_leaf = extract_leaf compiled_body_expression.state in
-    if not (Hashtbl.Poly.mem ctx.weights (Bdd.bdd_topvar ctx.man compiled_body_expression_leaf)) then
-      (* I guess this is already handled by the last Ite call when unrolling the while-loop? *)
-      failwith (Format.sprintf "Body expression of while-loop cannot have a weight assigned '%s'\n" (string_of_expr body_expression))
-    else
-      let compiled_test_expression = compile_expr ctx tenv env test in
-      let compiled_test_expression_leaf = extract_leaf compiled_test_expression.state in
-      let compiled_test_expression_weight =
-      match Hashtbl.Poly.find ctx.weights (Bdd.bdd_topvar ctx.man compiled_test_expression_leaf) with
-      | Some(w, _) -> Bignum.to_float w
-      | None -> failwith (Format.sprintf "While-loop guard cannot have a weight assigned '%s'\n" (string_of_expr test)) in
+      | While(test, body_expression) ->
+        let compiled_body_expression = compile_expr ctx tenv env body_expression in
+        let compiled_body_expression_leaf = extract_leaf compiled_body_expression.state in
+        let compiled_body_expression_weight =
+          match Hashtbl.Poly.find ctx.weights (Bdd.bdd_topvar ctx.man compiled_body_expression_leaf) with
+          | Some(_, w) -> Bignum.to_float w
+          | None -> failwith  (Format.sprintf
+            "Could not assign a weight to while-body expression '%s'\n" (string_of_expr body_expression)) in    
+        let compiled_test_expression = compile_expr ctx tenv env test in
+        let compiled_test_expression_leaf = extract_leaf compiled_test_expression.state in
+        let compiled_test_expression_weight =
+          match Hashtbl.Poly.find ctx.weights (Bdd.bdd_topvar ctx.man compiled_test_expression_leaf) with
+          | Some((* False prob. *) _, (* True prob *) w) -> Bignum.to_float w
+          | None -> failwith (Format.sprintf
+              "Could not assign a weight to While-loop guard '%s'\n" (string_of_expr test)) in
       
-      (* TODO: Move away from using this threshold and instead calculate the
-        relative entropy of both distributions. Should work since we are in the
-        realm of discrete distributions :) *)
-      let rec evaluate_test current_probability state threshold =
-        (* This is some ugly arithmetic that probably messes with floating point at the edge cases.
-          Furthermore, there might be more reliable and fast ways to do this. *)
-        (* I guess this could be sped up by having some kind of binary exponentiation to look for the
-          fixpoint; although this would require to have the ability to erase subtrees from the BDD.
-          While possible, not familiar enough with rsdd for adding this capabilities. *)
-        let weight = compiled_test_expression_weight *. current_probability in
-        let weight_percent = Float.to_int (weight *. 1_000_000_000.) in
-        (* Unroll the while-loop once if the threshold is not met. *)      
-        let r = Ite(test, body_expression, state) in
-          if weight_percent > threshold
-            then evaluate_test weight r threshold
-            else r in
-      
-      compile_expr ctx tenv env (evaluate_test 1.0 (Ite(test, body_expression, True)) 0)
+        let () = Printf.printf "compiled_test_expression_weight = %f\n" compiled_test_expression_weight in
+        let () = Printf.printf "compiled_body_expression_weight = %f\n" compiled_body_expression_weight in
+        let iteration_time = ref 1 in
+        let rec eval_test curr_test_false_prob body_expr =
+          let new_weight = curr_test_false_prob *. curr_test_false_prob in
+          let new_weight_int = Float.to_int (new_weight *. 100000000000000000.) in
+    
+          let weight = curr_test_false_prob *. (compiled_test_expression_weight) in
+          let weight_percent = Float.to_int (curr_test_false_prob *. 1000000000000000.) in
+    
+          let () = Printf.printf "====== Iteration %i =======\n" !iteration_time in iteration_time := (!iteration_time + 1);
+          let () = Printf.printf "curr_test_false_prob: %f\n" curr_test_false_prob in
+          let () = Printf.printf "weight: %f\n" weight in
+          let () = Printf.printf "weight_percent: %d\n" weight_percent in
+    
+          let () = Printf.printf "\n\t new_weight: %f\n" new_weight in
+          let () = Printf.printf "\n\t new_weight_int %d\n" new_weight_int in
+    
+          let thn_exp = And(body_expression, body_expr) in
+          let r = Ite(test, thn_exp, True) in
+            if new_weight_int > 0
+            then eval_test new_weight r
+            else body_expr in
+          
+        compile_expr ctx tenv env (eval_test (compiled_test_expression_weight) (Ite(test, body_expression, False)))
+        
 
   | Fst(e) ->
     let c = compile_expr ctx tenv env e in
@@ -381,3 +404,28 @@ let parse_with_error lexbuf =
       assert false in
   helper lexbuf (Parser.Incremental.program lexbuf.lex_curr_p)
 
+        (* 
+                     +------+
+                     |      |
+                     |  T   +-----------+
+                     |      |           |
+                +----+------+           |
+                |                       |
+                |                   +---v----+
+                |                   |        |
+             +--v-----+             |   B    |
+             |        |             |        +-------------------+
+             |        |             +-----^-^+                   |
+             |   F    |             |     | |                    |
+             |        |             |     | |                    |
+             +---+----+             |     | |                    |
+                 ^                  |     | |                    |
+                 |                  |     | |                    v
+                 |             +----v-----+ |              +-----+-----+
+                 |             |         || |              |           |
+                 +-------------+         || +--------------+           |
+                               |    T    ++                |     T     |
+                               |         |                 |           |
+                               +---------+                 +-----------+
+
+        let r = Ite(test, Ite(body_expression, body_expr, body_expr), False) in *)

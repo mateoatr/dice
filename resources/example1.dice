@@ -1,0 +1,2 @@
+let x = flip 0.6 in
+let y = flip 0.3 in x

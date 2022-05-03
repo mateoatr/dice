@@ -1,0 +1,1 @@
+if flip 0.5 then flip 0.5 else flip 0.3

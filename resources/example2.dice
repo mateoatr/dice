@@ -1,0 +1,1 @@
+let x = (flip 0.6, flip 0.3) in x

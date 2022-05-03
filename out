@@ -1,0 +1,29 @@
+compiled_test_expression_weight = 0.200000
+compiled_body_expression_weight = 0.500000
+====== Iteration 1 =======
+curr_test_false_prob: 0.800000
+================[ Joint Distribution ]================
+Value	Probability	
+true	0.05	
+false	0.95	
+
+================[ State BDD (graphviz format) ]================
+digraph D {  T [shape=box, label=T]
+ F [shape=box, label=F]
+idx5_648017920 [label = "f5_0.5" ]
+idx5_648017920 -> T
+idx5_648017920 -> F [style=dashed]
+idx4_929456679 [label = "f4_0.2" ]
+idx4_929456679 -> idx5_648017920
+idx4_929456679 -> F [style=dashed]
+idx3_703408466 [label = "f3_0.5" ]
+idx3_703408466 -> idx4_929456679
+idx3_703408466 -> F [style=dashed]
+ root [shape = box]
+root -> idx3_703408466
+ } 
+================[ State accepting BDD (graphviz format) ]================
+digraph D {  T [shape=box, label=T]
+ root [shape = box]
+root -> T
+ } 

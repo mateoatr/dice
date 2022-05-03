@@ -1,0 +1,25 @@
+// The two bellow are equivalent and simply
+// correspond to the two different ways in which
+// we can 'unroll' the while-loop, definining it
+// in terms of a sequence of if-then-else
+// statements:
+//
+// while c { e } =>
+// if !c then skip else (e; while c { e })
+//
+// while c { e } =>
+// if c then (e; while c { e }) else skip
+
+//if flip 0.5 then true else flip 0.3 &&
+//if flip 0.5 then true else flip 0.3 &&
+//if flip 0.5 then true else flip 0.3 &&
+//if flip 0.5 then true else flip 0.3
+
+if flip 0.5 then (flip 0.3 &&
+if flip 0.5 then (flip 0.3 &&
+if flip 0.5 then (flip 0.3 &&
+if flip 0.5 then (flip 0.3)
+else true)
+else true)
+else true)
+else true
